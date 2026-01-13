@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/QtExcelmaker">
+        <file>icons/folder.png</file>
+    </qresource>
+</RCC>
