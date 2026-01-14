@@ -32,17 +32,17 @@ void DesignSystem::loadThemes()
 	// Light Theme
 	m_lightTheme.primaryColor = QColor(22, 119, 255);	// Ant À¶É«
 	m_lightTheme.primaryHoverColor = m_lightTheme.primaryColor.lighter(130);
-	m_lightTheme.textColor = QColor(255, 255, 255);
-	m_lightTheme.backgroundColor = QColor(255, 255, 255);
-	m_lightTheme.widgetBgColor = QColor(240, 240, 240);
-	m_lightTheme.widgetHoverBgColor = QColor(230, 230, 230);
-	m_lightTheme.widgetSelectedBgColor = QColor(220, 220, 220);
-	m_lightTheme.borderColor = QColor(200, 200, 200);
+	m_lightTheme.textColor = QColor(30, 30, 30);
+	m_lightTheme.backgroundColor = QColor(245, 246, 248);
+	m_lightTheme.widgetBgColor = QColor(255, 255, 255);
+	m_lightTheme.widgetHoverBgColor = QColor(248, 249, 251);
+	m_lightTheme.widgetSelectedBgColor = QColor(238, 240, 244);
+	m_lightTheme.borderColor = QColor(228, 228, 228);
 	m_lightTheme.borderColorHover = QColor(22, 119, 255);
-	m_lightTheme.shadowColor = QColor(80, 80, 80);
+	m_lightTheme.shadowColor = QColor(0, 0, 0, 30);
 	m_lightTheme.msgTextColor = QColor(30, 30, 30);
 	m_lightTheme.msgBgColor = QColor(255, 255, 255);
-	m_lightTheme.disabledColor = QColor(150, 150, 150);
+	m_lightTheme.disabledColor = QColor(140, 140, 140);
 	m_lightTheme.slideBgColor = QColor(200, 200, 200);
 	m_lightTheme.slideColor = QColor(66, 133, 244);
 	m_lightTheme.ringColor = QColor(153, 204, 255);
@@ -57,8 +57,8 @@ void DesignSystem::loadThemes()
 	m_lightTheme.toolBtnBgColor = QColor(24, 144, 255, 40);
 	m_lightTheme.progressBarBgColor = QColor(224, 224, 224);
 	m_lightTheme.tagTextColor = QColor(0, 0, 0);
-	m_lightTheme.lineEditBorderColor = QColor(180, 180, 180);
-	m_lightTheme.placeholderColor = QColor(150, 150, 150);
+	m_lightTheme.lineEditBorderColor = QColor(217, 217, 217);
+	m_lightTheme.placeholderColor = QColor(160, 160, 160);
 	m_lightTheme.checkBoxBgColor = QColor(255, 255, 255);
 	m_lightTheme.checkBoxBorderEnableColor = QColor(180, 180, 180);
 	m_lightTheme.checkBoxBorderDisableColor = QColor(200, 200, 200);

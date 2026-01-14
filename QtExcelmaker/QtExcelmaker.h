@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include <QtWidgets/QWidget>
 #include <QVBoxLayout>
@@ -7,11 +7,12 @@
 #include <QPushButton>
 #include <QLineEdit>
 #include <QFileDialog>
+#include <QGraphicsDropShadowEffect>
 #include "DesignSystem.h"
 #include "Win11CheckButton.h"
 #include "StyleSheet.h"
 
-// ¼Ì³Ğ×Ô QMainWindow£¨Qt Ö÷´°¿ÚÀà£©
+// ç»§æ‰¿è‡ª QMainWindowï¼ˆQt ä¸»çª—å£ç±»ï¼‰
 //class QtExcelmaker : public QMainWindow
 class QtExcelmaker : public QWidget
 {
@@ -23,7 +24,10 @@ public:
 
 private:
     void setupUI();
-    QHBoxLayout* createFileRow(const QString& labelText, QLineEdit** lineEdit);
+    QWidget* creatCard(const QString& title, QLayout* const contentLayout);
+    QHBoxLayout* createFileRow(const QString& labelText, QLineEdit** lineEdit, bool isFolder = true);
+    void applyThemeStyles();
+
     QLineEdit* m_mixedFolderEdit;
     QLineEdit* m_roadFolderEdit;
     QLineEdit* m_facilityFolderEdit;
@@ -32,5 +36,8 @@ private:
     QLineEdit* m_outputDirEdit;
     Win11CheckButton* m_checkBox;
     QPushButton* m_startBtn;
+
+    // ä¸»é¢˜ç›¸å…³
+    DesignSystem* m_designSystem;
 };
 

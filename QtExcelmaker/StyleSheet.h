@@ -401,34 +401,46 @@ namespace StyleSheet
 	}
 
 	inline QString antBaseInputQss(
+		const QColor& normalBorder,
 		const QColor& normalBg,
 		const QColor& hoverBg,
 		const QColor& focusBorderColor,
 		const QColor& focusBg,
+		const QColor& textColor,
+		const QColor& placeholderColor,
 		int padding)
 	{
 		return QString(R"(
 		#AntBaseInput {
-			border: 2px solid %1;
+			border: 1px solid %1;
 			border-radius: 6px;
-			background-color: %1;
-			padding: %5px;
+			background-color: %2;
+			color: %6;
+			padding: %8px;
+		}
+
+		#AntBaseInput::placeholder {
+			color: %7;
 		}
 
 		#AntBaseInput:hover {
-			background-color: %2;
+			background-color: %3;
 		}
 
 		#AntBaseInput:focus {
-			border: 2px solid %3;
-			background-color: %4;
+			border: 1px solid %4;
+			background-color: %5;
 		}
-		)").arg(normalBg.name())
+		)").arg(normalBorder.name())
+			.arg(normalBg.name())
 			.arg(hoverBg.name())
 			.arg(focusBorderColor.name())
 			.arg(focusBg.name())
+			.arg(textColor.name())
+			.arg(placeholderColor.name())
 			.arg(QString::number(padding));
 	}
+
 
 	// 垂直方向列表视图
 	inline QString vListViewQss(const QColor& handleColor)
