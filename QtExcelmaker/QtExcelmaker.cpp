@@ -1,5 +1,44 @@
 ﻿#include "QtExcelmaker.h"
 #include <QDebug>
+#include <QDialog>
+#include <QProgressBar>
+#include <QTextCharFormat>
+#include <QTextCursor>
+#include <QTextEdit>
+#include <QTextOption>
+#include <QEvent>
+#include "QtExcelController.h"
+#include "OpenXlsxAdapter.h"
+#include <memory>
+
+namespace {
+
+    std::unique_ptr<core::IExcelReader> createReader() {
+        return std::make_unique<core::OpenXlsxReader>();
+    }
+
+    std::unique_ptr<core::IExcelWriter> createWriter() {
+        return std::make_unique<core::OpenXlsxWriter>();
+    }
+
+    QString stageLabel(int stage) {
+        switch (stage) {
+        case 0:
+            return "Scanning";
+        case 1:
+            return "Reading";
+        case 2:
+            return "Grouping";
+        case 3:
+            return "Writing";
+        case 4:
+            return "Done";
+        default:
+            return "Working";
+        }
+    }
+
+}  // namespace
 
 QtExcelmaker::QtExcelmaker(QWidget *parent)
     : QWidget(parent)
@@ -7,6 +46,29 @@ QtExcelmaker::QtExcelmaker(QWidget *parent)
 {
     setupUI();
     applyThemeStyles();
+
+    m_resizeDebounce = new QTimer(this);
+    m_resizeDebounce->setSingleShot(true);
+    connect(m_resizeDebounce, &QTimer::timeout, this, [this]() {
+        setCardShadowsEnabled(true);
+    });
+
+    m_progressResizeDebounce = new QTimer(this);
+    m_progressResizeDebounce->setSingleShot(true);
+    connect(m_progressResizeDebounce, &QTimer::timeout, this, [this]() {
+        if (m_progressLog) {
+            m_progressLog->setUpdatesEnabled(true);
+            if (auto* view = m_progressLog->viewport()) {
+                view->update();
+            }
+        }
+        if (m_progressBar) {
+            m_progressBar->setUpdatesEnabled(true);
+        }
+        if (m_progressStatus) {
+            m_progressStatus->setUpdatesEnabled(true);
+        }
+    });
 }
 
 QtExcelmaker::~QtExcelmaker()
@@ -107,7 +169,54 @@ void QtExcelmaker::setupUI()
         qDebug() << "路基文件夹:" << m_roadFolderEdit->text();
         qDebug() << "设施文件夹:" << m_facilityFolderEdit->text();
         });
-    
+
+    // 创建 controller（需要你提供具体 Excel 适配器实现）
+    auto* controller = new QtExcelController(createReader(), createWriter(), this);
+
+    connect(m_startBtn, &QPushButton::clicked, this, [this, controller]() {
+        QtExcelController::UiInput input;
+        input.mixedFolder = m_mixedFolderEdit->text();
+        input.roadFolder = m_roadFolderEdit->text();
+        input.facilityFolder = m_facilityFolderEdit->text();
+        input.roadTemplate = m_roadTemplateEdit->text();
+        input.facilityTemplate = m_facilityTemplateEdit->text();
+        input.outputDir = m_outputDirEdit->text();
+        input.includeSubfolders = m_checkBox->isChecked();
+        ensureProgressDialog();
+        setProgressRunning();
+        m_startBtn->setEnabled(false);
+        controller->run(input);
+        });
+
+    connect(controller, &QtExcelController::progressTextChanged, this, [this](const QString& text) {
+        appendProgressLog(text);
+        });
+
+    connect(controller, &QtExcelController::progressUpdated, this,
+        [this](int stage, int current, int total, const QString& message) {
+            Q_UNUSED(message);
+            ensureProgressDialog();
+            if (!m_progressDialog) {
+                return;
+            }
+            if (total > 0) {
+                m_progressBar->setRange(0, total);
+                m_progressBar->setValue(current);
+            }
+            else {
+                m_progressBar->setRange(0, 0);
+            }
+            QString status = stageLabel(stage);
+            if (total > 0) {
+                status += QString(" %1/%2").arg(current).arg(total);
+            }
+            m_progressStatus->setText(status);
+        });
+
+    connect(controller, &QtExcelController::finished, this, [this](bool ok, const QString& summary) {
+        setProgressFinished(ok, summary);
+        m_startBtn->setEnabled(true);
+        });
 }
 
 QWidget* QtExcelmaker::creatCard(const QString& title, QLayout* const contentLayout)
@@ -130,6 +239,7 @@ QWidget* QtExcelmaker::creatCard(const QString& title, QLayout* const contentLay
     shadow->setColor(theme.shadowColor);
     shadow->setOffset(0, 2);
     card->setGraphicsEffect(shadow);
+    m_cardShadows.push_back(shadow);
 
     auto* cardLayout = new QVBoxLayout(card);
     cardLayout->setContentsMargins(20, 16, 20, 16);
@@ -224,5 +334,211 @@ void QtExcelmaker::applyThemeStyles()
 
     // 应用背景色
     setStyleSheet(QString("background-color: %1;").arg(theme.backgroundColor.name()));
+}
+
+void QtExcelmaker::setCardShadowsEnabled(bool enabled)
+{
+    for (auto* shadow : m_cardShadows) {
+        if (shadow) {
+            shadow->setEnabled(enabled);
+        }
+    }
+}
+
+void QtExcelmaker::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event);
+    if (!m_resizeDebounce) {
+        return;
+    }
+    setCardShadowsEnabled(false);
+    m_resizeDebounce->start(120);
+}
+
+bool QtExcelmaker::eventFilter(QObject* watched, QEvent* event)
+{
+    if (watched == m_progressDialog && event->type() == QEvent::Resize) {
+        if (m_progressLog) {
+            m_progressLog->setUpdatesEnabled(false);
+        }
+        if (m_progressBar) {
+            m_progressBar->setUpdatesEnabled(false);
+        }
+        if (m_progressStatus) {
+            m_progressStatus->setUpdatesEnabled(false);
+        }
+        if (m_progressResizeDebounce) {
+            m_progressResizeDebounce->start(120);
+        }
+    }
+    return QWidget::eventFilter(watched, event);
+}
+
+void QtExcelmaker::ensureProgressDialog()
+{
+    if (m_progressDialog) {
+        return;
+    }
+
+    const auto& theme = m_designSystem->currentTheme();
+
+    m_progressDialog = new QDialog(this);
+    m_progressDialog->setObjectName("ProgressDialog");
+    m_progressDialog->setWindowTitle("Processing");
+    m_progressDialog->setModal(false);
+    m_progressDialog->setMinimumSize(640, 360);
+    m_progressDialog->installEventFilter(this);
+
+    m_progressDialog->setStyleSheet(QString(R"(
+        #ProgressDialog {
+            background-color: %1;
+            border: 1px solid %2;
+            border-radius: 10px;
+        }
+    )").arg(theme.widgetBgColor.name(), theme.borderColor.name()));
+
+    auto* layout = new QVBoxLayout(m_progressDialog);
+    layout->setContentsMargins(16, 16, 16, 16);
+    layout->setSpacing(10);
+
+    auto* headerLayout = new QHBoxLayout();
+    auto* titleLabel = new QLabel("Progress Log", m_progressDialog);
+    titleLabel->setStyleSheet(QString("font-size: 14px; font-weight: 600; color: %1;")
+        .arg(theme.textColor.name()));
+    m_progressStatus = new QLabel("Idle", m_progressDialog);
+    m_progressStatus->setStyleSheet(QString("font-size: 12px; color: %1;")
+        .arg(theme.disabledColor.name()));
+
+    headerLayout->addWidget(titleLabel);
+    headerLayout->addStretch();
+    headerLayout->addWidget(m_progressStatus);
+    layout->addLayout(headerLayout);
+
+    m_progressBar = new QProgressBar(m_progressDialog);
+    m_progressBar->setTextVisible(false);
+    m_progressBar->setRange(0, 1);
+    m_progressBar->setValue(0);
+    m_progressBar->setFixedHeight(8);
+    m_progressBar->setStyleSheet(QString(R"(
+        QProgressBar {
+            background-color: %1;
+            border: none;
+            border-radius: 4px;
+        }
+        QProgressBar::chunk {
+            background-color: %2;
+            border-radius: 4px;
+        }
+    )").arg(theme.progressBarBgColor.name(), theme.primaryColor.name()));
+    layout->addWidget(m_progressBar);
+
+    m_progressLog = new QTextEdit(m_progressDialog);
+    m_progressLog->setObjectName("ProgressLog");
+    m_progressLog->setReadOnly(true);
+    m_progressLog->document()->setMaximumBlockCount(2000);
+    m_progressLog->setLineWrapMode(QTextEdit::NoWrap);
+    m_progressLog->setWordWrapMode(QTextOption::NoWrap);
+    m_progressLog->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    m_progressLog->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    m_progressLog->setUndoRedoEnabled(false);
+    if (auto* view = m_progressLog->viewport()) {
+        view->setAttribute(Qt::WA_StaticContents, true);
+    }
+    m_progressLog->setStyleSheet(QString(R"(
+        QTextEdit#ProgressLog {
+            background-color: %1;
+            border: 1px solid %2;
+            border-radius: 6px;
+            padding: 6px;
+            color: %3;
+        }
+    )").arg(theme.widgetBgColor.name(), theme.borderColor.name(), theme.textColor.name()));
+    layout->addWidget(m_progressLog, 1);
+
+    auto* buttonLayout = new QHBoxLayout();
+    buttonLayout->addStretch();
+    m_progressCloseBtn = new QPushButton("Close", m_progressDialog);
+    m_progressCloseBtn->setFixedHeight(32);
+    m_progressCloseBtn->setEnabled(false);
+    m_progressCloseBtn->setStyleSheet(QString(R"(
+        QPushButton {
+            background-color: %1;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 0 16px;
+            font-size: 13px;
+        }
+        QPushButton:disabled {
+            background-color: %2;
+            color: %3;
+        }
+    )").arg(theme.primaryColor.name(), theme.borderColor.name(), theme.disabledColor.name()));
+    connect(m_progressCloseBtn, &QPushButton::clicked, m_progressDialog, &QDialog::hide);
+    buttonLayout->addWidget(m_progressCloseBtn);
+    layout->addLayout(buttonLayout);
+}
+
+void QtExcelmaker::appendProgressLog(const QString& text)
+{
+    ensureProgressDialog();
+    if (!m_progressLog) {
+        return;
+    }
+
+    const auto& theme = m_designSystem->currentTheme();
+    QTextCharFormat format;
+    if (text.startsWith("error:", Qt::CaseInsensitive)) {
+        format.setForeground(QColor("#d4380d"));
+    }
+    else if (text.startsWith("warning:", Qt::CaseInsensitive)) {
+        format.setForeground(QColor("#d4a106"));
+    }
+    else {
+        format.setForeground(theme.textColor);
+    }
+
+    QTextCursor cursor(m_progressLog->document());
+    cursor.movePosition(QTextCursor::End);
+    cursor.insertText(text + "\n", format);
+    m_progressLog->setTextCursor(cursor);
+    m_progressLog->ensureCursorVisible();
+}
+
+void QtExcelmaker::setProgressRunning()
+{
+    ensureProgressDialog();
+    if (!m_progressDialog) {
+        return;
+    }
+
+    const auto& theme = m_designSystem->currentTheme();
+    m_progressLog->clear();
+    m_progressStatus->setText("Running...");
+    m_progressStatus->setStyleSheet(QString("font-size: 12px; color: %1;")
+        .arg(theme.disabledColor.name()));
+    m_progressBar->setRange(0, 0);
+    m_progressBar->setValue(0);
+    m_progressCloseBtn->setEnabled(false);
+    m_progressDialog->show();
+    m_progressDialog->raise();
+    m_progressDialog->activateWindow();
+}
+
+void QtExcelmaker::setProgressFinished(bool ok, const QString& summary)
+{
+    ensureProgressDialog();
+    if (!m_progressDialog) {
+        return;
+    }
+
+    const auto& theme = m_designSystem->currentTheme();
+    m_progressBar->setRange(0, 1);
+    m_progressBar->setValue(1);
+    m_progressStatus->setText(ok ? "Completed" : "Completed with errors");
+    m_progressStatus->setStyleSheet(QString("font-size: 12px; color: %1;")
+        .arg(ok ? theme.textColor.name() : QString("#d4380d")));
+    appendProgressLog(summary);
+    m_progressCloseBtn->setEnabled(true);
 }
 

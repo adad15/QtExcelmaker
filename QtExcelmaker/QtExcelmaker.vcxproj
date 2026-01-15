@@ -60,13 +60,21 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <IncludePath>D:\vs2022 code\QtExcelmaker\QtExcelmaker\OpenXLSX\include;D:\vs2022 code\QtExcelmaker\QtExcelmaker\OpenXLSX\include\headers;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\vs2022 code\QtExcelmaker\QtExcelmaker\OpenXLSX\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <IncludePath>D:\vs2022 code\QtExcelmaker\QtExcelmaker\OpenXLSX\include;D:\vs2022 code\QtExcelmaker\QtExcelmaker\OpenXLSX\include\headers;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\vs2022 code\QtExcelmaker\QtExcelmaker\OpenXLSX\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir)core</AdditionalIncludeDirectories>
     </ClCompile>
+    <Link>
+      <AdditionalDependencies>OpenXLSXd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="Configuration">
     <ClCompile>
@@ -88,18 +96,23 @@
       <ConformanceMode>true</ConformanceMode>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
+      <AdditionalIncludeDirectories>$(ProjectDir)core</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>OpenXLSX.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="CustomToolButton.cpp" />
     <ClCompile Include="DesignSystem.cpp" />
+    <ClCompile Include="ExcelPipeline.cpp" />
     <ClCompile Include="MaskWidget.cpp" />
+    <ClCompile Include="OpenXlsxAdapter.cpp" />
+    <ClCompile Include="QtExcelController.cpp" />
     <ClCompile Include="TransparentMask.cpp" />
     <ClCompile Include="Win11CheckButton.cpp" />
     <QtRcc Include="QtExcelmaker.qrc" />
@@ -116,6 +129,12 @@
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="CustomToolButton.h" />
+    <ClInclude Include="Excellnterfaces.h" />
+    <ClInclude Include="ExcelPipeline.h" />
+    <ClInclude Include="ExcelTypes.h" />
+    <ClInclude Include="OpenXlsxAdapter.h" />
+    <ClInclude Include="ProcessConfig.h" />
+    <QtMoc Include="QtExcelController.h" />
     <ClInclude Include="StyleSheet.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
